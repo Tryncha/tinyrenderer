@@ -2,27 +2,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "constants.h"
 #include "geometry.h"
 #include "model.h"
 #include "random-mt.h"
 #include "tgaimage.h"
 #include "timer.h"
-
-namespace constants {
-constexpr int width{1024};
-constexpr int height{1024};
-}  // namespace constants
-
-namespace colors {
-// clang-format off
-// attention: order         B    G    R    A
-constexpr TGAColor white  {255, 255, 255, 255};
-constexpr TGAColor green  {  0, 255,   0, 255};
-constexpr TGAColor red    {  0,   0, 255, 255};
-constexpr TGAColor blue   {255, 128,  64, 255};
-constexpr TGAColor yellow {  0, 200, 255, 255};
-// clang-format on
-}  // namespace colors
 
 void draw_line(int ax, int ay, int bx, int by, TGAImage& framebuffer,
                const TGAColor& color) {
@@ -77,9 +62,9 @@ void build_model(const std::string filename, TGAImage& framebuffer) {
     const auto [bx, by] = project(model.get_vert(i, 1));
     const auto [cx, cy] = project(model.get_vert(i, 2));
 
-    draw_line(ax, ay, bx, by, framebuffer, colors::red);
-    draw_line(bx, by, cx, cy, framebuffer, colors::red);
-    draw_line(cx, cy, ax, ay, framebuffer, colors::red);
+    draw_line(ax, ay, bx, by, framebuffer, constants::colors::red);
+    draw_line(bx, by, cx, cy, framebuffer, constants::colors::red);
+    draw_line(cx, cy, ax, ay, framebuffer, constants::colors::red);
   }
 
   // iterate through all vertices
@@ -87,7 +72,7 @@ void build_model(const std::string filename, TGAImage& framebuffer) {
     const Vec<3> v{model.get_vert(i)};  // get i-th vertex
     const auto [x, y] = project(v);     // project it to the screen
 
-    framebuffer.set(x, y, colors::white);
+    framebuffer.set(x, y, constants::colors::white);
   }
 }
 
