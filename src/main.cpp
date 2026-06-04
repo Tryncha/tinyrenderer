@@ -2,9 +2,16 @@
 #include <cmath>
 #include <iostream>
 
+#include "geometry.h"
+#include "model.h"
 #include "random-mt.h"
 #include "tgaimage.h"
 #include "timer.h"
+
+namespace constants {
+constexpr int width{800};
+constexpr int height{800};
+}  // namespace constants
 
 namespace colors {
 // clang-format off
@@ -16,11 +23,6 @@ constexpr TGAColor blue   {255, 128,  64, 255};
 constexpr TGAColor yellow {  0, 200, 255, 255};
 // clang-format on
 }  // namespace colors
-
-struct Coord {
-  int x{};
-  int y{};
-};
 
 void draw_line(int ax, int ay, int bx, int by, TGAImage& framebuffer,
                const TGAColor& color) {
@@ -50,43 +52,51 @@ void draw_line(int ax, int ay, int bx, int by, TGAImage& framebuffer,
 
     error += 2 * std::abs(by - ay);
 
-    // using this 'ugly' technique for critical performance
-    y += by > ax ? 1 : -1 * (error > bx - ax);
-    error -= 2 * (bx - ax) * (error > bx - ax);
+    if (error > bx - ax) {
+      y += by > ay ? 1 : -1;
+      error -= 2 * (bx - ax);
+    }
   }
+}
+
+// First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
+// Second, since the input models are scaled to have fit in the [-1,1]^3 world
+// coordinates, we want to shift the vector (x,y) and then scale it to span the
+// entire screen.
+std::tuple<int, int> project(vec3 v) {
+  return {(v.x + 1.0f) * constants::width / 2,
+          (v.y + 1.0f) * constants::height / 2};
 }
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   Timer t{};
 
-  constexpr int wdt{64};
-  constexpr int hgt{64};
-
-  TGAImage framebuffer(wdt, hgt, TGAImage::RGB);
-
-  for (int i{0}; i < (1 << 24); ++i) {
-    Coord a{random_mt::get(0, wdt), random_mt::get(0, hgt)};
-    Coord b{random_mt::get(0, wdt), random_mt::get(0, hgt)};
-
-    draw_line(a.x, a.y, b.x, b.y, framebuffer,
-              {static_cast<std::uint8_t>(random_mt::get(0, 255)),
-               static_cast<std::uint8_t>(random_mt::get(0, 255)),
-               static_cast<std::uint8_t>(random_mt::get(0, 255)),
-               static_cast<std::uint8_t>(random_mt::get(0, 255))});
+  if (argc != 2) {
+    std::cerr << "Usage: " << argv[0] << " obj/model.obj" << '\n';
+    return 1;
   }
 
-  // Coord a{7, 3};
-  // Coord b{12, 37};
-  // Coord c{62, 53};
+  Model model(argv[1]);
+  TGAImage framebuffer(constants::width, constants::height, TGAImage::RGB);
 
-  // draw_line(a, b, framebuffer, colors::blue);
-  // draw_line(c, b, framebuffer, colors::green);
-  // draw_line(c, a, framebuffer, colors::yellow);
-  // draw_line(a, c, framebuffer, colors::red);
+  // iterate through all triangles
+  for (int i{0}; i < model.get_num_faces(); ++i) {
+    auto [ax, ay] = project(model.vert(i, 0));
+    auto [bx, by] = project(model.vert(i, 1));
+    auto [cx, cy] = project(model.vert(i, 2));
 
-  // framebuffer.set(a.x, a.y, colors::white);
-  // framebuffer.set(b.x, b.y, colors::white);
-  // framebuffer.set(c.x, c.y, colors::white);
+    draw_line(ax, ay, bx, by, framebuffer, colors::red);
+    draw_line(bx, by, cx, cy, framebuffer, colors::red);
+    draw_line(cx, cy, ax, ay, framebuffer, colors::red);
+  }
+
+  // iterate through all vertices
+  for (int i{0}; i < model.get_num_verts(); ++i) {
+    vec3 v{model.vert(i)};     // get i-th vertex
+    auto [x, y] = project(v);  // project it to the screen
+
+    framebuffer.set(x, y, colors::white);
+  }
 
   framebuffer.write_tga_file("framebuffer.tga");
 

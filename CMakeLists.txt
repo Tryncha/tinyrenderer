@@ -9,6 +9,7 @@ project(tinyrenderer VERSION 0.1.0 LANGUAGES CXX)
 add_executable(${PROJECT_NAME}
   src/main.cpp
   src/tgaimage.cpp
+  src/model.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -37,7 +38,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 
 # Ignore warnings from Ssloy's implementation
 set_source_files_properties(
+  include/geometry.h
   src/tgaimage.cpp
+  src/model.cpp
   PROPERTIES
   COMPILE_OPTIONS "-w"
 )
