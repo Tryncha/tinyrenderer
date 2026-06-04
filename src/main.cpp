@@ -1,9 +1,8 @@
-#include <chrono>
 #include <cmath>
 #include <iostream>
+#include <utility>
 
 #include "constants.h"
-#include "geometry.h"
 #include "model.h"
 #include "random-mt.h"
 #include "tgaimage.h"
@@ -48,7 +47,7 @@ void draw_line(int ax, int ay, int bx, int by, TGAImage& framebuffer,
 // Second, since the input models are scaled to have fit in the [-1,1]^3 world
 // coordinates, we want to shift the vector (x,y) and then scale it to span the
 // entire screen.
-std::tuple<int, int> project(Vec<3> v) {
+std::pair<int, int> project(Vec<3> v) {
   return {(v[0] + 1.0f) * constants::width / 2,
           (v[1] + 1.0f) * constants::height / 2};
 }
