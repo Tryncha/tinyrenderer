@@ -9,8 +9,8 @@
 #include "timer.h"
 
 namespace constants {
-constexpr int width{800};
-constexpr int height{800};
+constexpr int width{1024};
+constexpr int height{1024};
 }  // namespace constants
 
 namespace colors {
@@ -63,9 +63,9 @@ void draw_line(int ax, int ay, int bx, int by, TGAImage& framebuffer,
 // Second, since the input models are scaled to have fit in the [-1,1]^3 world
 // coordinates, we want to shift the vector (x,y) and then scale it to span the
 // entire screen.
-std::tuple<int, int> project(vec3 v) {
-  return {(v.x + 1.0f) * constants::width / 2,
-          (v.y + 1.0f) * constants::height / 2};
+std::tuple<int, int> project(Vec<3> v) {
+  return {(v[0] + 1.0f) * constants::width / 2,
+          (v[1] + 1.0f) * constants::height / 2};
 }
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
@@ -81,9 +81,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
   // iterate through all triangles
   for (int i{0}; i < model.get_num_faces(); ++i) {
-    auto [ax, ay] = project(model.vert(i, 0));
-    auto [bx, by] = project(model.vert(i, 1));
-    auto [cx, cy] = project(model.vert(i, 2));
+    const auto [ax, ay] = project(model.vert(i, 0));
+    const auto [bx, by] = project(model.vert(i, 1));
+    const auto [cx, cy] = project(model.vert(i, 2));
 
     draw_line(ax, ay, bx, by, framebuffer, colors::red);
     draw_line(bx, by, cx, cy, framebuffer, colors::red);
@@ -92,8 +92,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
   // iterate through all vertices
   for (int i{0}; i < model.get_num_verts(); ++i) {
-    vec3 v{model.vert(i)};     // get i-th vertex
-    auto [x, y] = project(v);  // project it to the screen
+    const Vec<3> v{model.vert(i)};   // get i-th vertex
+    const auto [x, y] = project(v);  // project it to the screen
 
     framebuffer.set(x, y, colors::white);
   }

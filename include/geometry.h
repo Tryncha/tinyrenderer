@@ -1,42 +1,34 @@
 #ifndef GEOMETRY_H
 #define GEOMETRY_H
 
+#include <array>
 #include <cassert>
-#include <cmath>
+#include <cstddef>
 #include <iostream>
 
-template <int N>
-struct vec {
-  double data[N] = {0};
-  double& operator[](const int i) {
-    assert(i >= 0 && i < N);
+template <std::size_t N>
+struct Vec {
+  std::array<double, N> data{};
+
+  double& operator[](std::size_t i) {
+    assert(i < N);
     return data[i];
   }
-  double operator[](const int i) const {
-    assert(i >= 0 && i < N);
+
+  const double& operator[](std::size_t i) const {
+    assert(i < N);
     return data[i];
   }
 };
 
-template <int N>
-std::ostream& operator<<(std::ostream& out, const vec<N>& v) {
-  for (int i = 0; i < N; i++) out << v[i] << " ";
+template <std::size_t N>
+std::ostream& operator<<(std::ostream& out, const Vec<N>& v) {
+  for (std::size_t i{0}; i < N; ++i) {
+    if (i != 0) out << ' ';
+    out << v[i];
+  }
+
   return out;
 }
-
-template <>
-struct vec<3> {
-  double x = 0, y = 0, z = 0;
-  double& operator[](const int i) {
-    assert(i >= 0 && i < 3);
-    return i ? (1 == i ? y : z) : x;
-  }
-  double operator[](const int i) const {
-    assert(i >= 0 && i < 3);
-    return i ? (1 == i ? y : z) : x;
-  }
-};
-
-typedef vec<3> vec3;
 
 #endif

@@ -38,7 +38,6 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 
 # Ignore warnings from Ssloy's implementation
 set_source_files_properties(
-  include/geometry.h
   src/tgaimage.cpp
   src/model.cpp
   PROPERTIES
