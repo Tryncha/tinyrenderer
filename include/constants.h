@@ -4,8 +4,8 @@
 #include "tgaimage.h"
 
 namespace constants {
-constexpr int width{1024};
-constexpr int height{1024};
+constexpr int width{128};
+constexpr int height{128};
 
 namespace colors {
 // clang-format off

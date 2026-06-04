@@ -44,49 +44,22 @@ void draw_line(int ax, int ay, int bx, int by, TGAImage& framebuffer,
   }
 }
 
-// First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
-// Second, since the input models are scaled to have fit in the [-1,1]^3 world
-// coordinates, we want to shift the vector (x,y) and then scale it to span the
-// entire screen.
-std::tuple<int, int> project(Vec<3> v) {
-  return {(v[0] + 1.0f) * constants::width / 2,
-          (v[1] + 1.0f) * constants::height / 2};
-}
-
-void build_model(const std::string filename, TGAImage& framebuffer) {
-  Model model{filename};
-
-  // iterate through all triangles
-  for (int i{0}; i < model.get_num_faces(); ++i) {
-    const auto [ax, ay] = project(model.get_vert(i, 0));
-    const auto [bx, by] = project(model.get_vert(i, 1));
-    const auto [cx, cy] = project(model.get_vert(i, 2));
-
-    draw_line(ax, ay, bx, by, framebuffer, constants::colors::red);
-    draw_line(bx, by, cx, cy, framebuffer, constants::colors::red);
-    draw_line(cx, cy, ax, ay, framebuffer, constants::colors::red);
-  }
-
-  // iterate through all vertices
-  for (int i{0}; i < model.get_num_verts(); ++i) {
-    const Vec<3> v{model.get_vert(i)};  // get i-th vertex
-    const auto [x, y] = project(v);     // project it to the screen
-
-    framebuffer.set(x, y, constants::colors::white);
-  }
+void triangle(int ax, int ay, int bx, int by, int cx, int cy,
+              TGAImage& framebuffer, TGAColor color) {
+  draw_line(ax, ay, bx, by, framebuffer, color);
+  draw_line(bx, by, cx, cy, framebuffer, color);
+  draw_line(cx, cy, ax, ay, framebuffer, color);
 }
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   Timer t{};
 
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " obj/model.obj" << '\n';
-    return 1;
-  }
-
   TGAImage framebuffer(constants::width, constants::height, TGAImage::RGB);
 
-  build_model(argv[1], framebuffer);
+  triangle(7, 45, 35, 100, 45, 60, framebuffer, constants::colors::red);
+  triangle(120, 35, 90, 5, 45, 110, framebuffer, constants::colors::white);
+  triangle(115, 83, 80, 90, 85, 120, framebuffer, constants::colors::green);
+
   framebuffer.write_tga_file("framebuffer.tga");
 
   std::cout << "Time elapsed: " << t.elapsed() << " seconds\n";
