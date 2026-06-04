@@ -46,8 +46,8 @@ Model::Model(const std::string filename) {
 int Model::get_num_verts() const { return verts.size(); }
 int Model::get_num_faces() const { return facet_vrt.size() / 3; }
 
-Vec<3> Model::vert(const int i) const { return verts[i]; }
+Vec<3> Model::get_vert(const int i) const { return verts[i]; }
 
-Vec<3> Model::vert(const int iface, const int nthvert) const {
+Vec<3> Model::get_vert(const int iface, const int nthvert) const {
   return verts[facet_vrt[iface * 3 + nthvert]];
 }

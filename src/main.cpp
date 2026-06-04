@@ -68,22 +68,14 @@ std::tuple<int, int> project(Vec<3> v) {
           (v[1] + 1.0f) * constants::height / 2};
 }
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
-  Timer t{};
-
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " obj/model.obj" << '\n';
-    return 1;
-  }
-
-  Model model(argv[1]);
-  TGAImage framebuffer(constants::width, constants::height, TGAImage::RGB);
+void build_model(const std::string filename, TGAImage& framebuffer) {
+  Model model{filename};
 
   // iterate through all triangles
   for (int i{0}; i < model.get_num_faces(); ++i) {
-    const auto [ax, ay] = project(model.vert(i, 0));
-    const auto [bx, by] = project(model.vert(i, 1));
-    const auto [cx, cy] = project(model.vert(i, 2));
+    const auto [ax, ay] = project(model.get_vert(i, 0));
+    const auto [bx, by] = project(model.get_vert(i, 1));
+    const auto [cx, cy] = project(model.get_vert(i, 2));
 
     draw_line(ax, ay, bx, by, framebuffer, colors::red);
     draw_line(bx, by, cx, cy, framebuffer, colors::red);
@@ -92,12 +84,24 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
   // iterate through all vertices
   for (int i{0}; i < model.get_num_verts(); ++i) {
-    const Vec<3> v{model.vert(i)};   // get i-th vertex
-    const auto [x, y] = project(v);  // project it to the screen
+    const Vec<3> v{model.get_vert(i)};  // get i-th vertex
+    const auto [x, y] = project(v);     // project it to the screen
 
     framebuffer.set(x, y, colors::white);
   }
+}
 
+int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+  Timer t{};
+
+  if (argc != 2) {
+    std::cerr << "Usage: " << argv[0] << " obj/model.obj" << '\n';
+    return 1;
+  }
+
+  TGAImage framebuffer(constants::width, constants::height, TGAImage::RGB);
+
+  build_model(argv[1], framebuffer);
   framebuffer.write_tga_file("framebuffer.tga");
 
   std::cout << "Time elapsed: " << t.elapsed() << " seconds\n";

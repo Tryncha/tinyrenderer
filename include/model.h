@@ -12,9 +12,10 @@ class Model {
   int get_num_verts() const;  // number of vertices
   int get_num_faces() const;  // number of triangles
 
-  Vec<3> vert(const int i) const;  // 0 <= i < nverts()
-  Vec<3> vert(const int iface, const int nthvert)
-      const;  // 0 <= iface <= nfaces(), 0 <= nthvert < 3
+  // 0 <= i < nverts()
+  Vec<3> get_vert(const int i) const;
+  // 0 <= iface <= nfaces(), 0 <= nthvert < 3
+  Vec<3> get_vert(const int iface, const int nthvert) const;
 
  private:
   std::vector<Vec<3>> verts{};   // array of vertices
