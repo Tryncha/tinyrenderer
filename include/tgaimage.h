@@ -1,4 +1,6 @@
-#pragma once
+#ifndef TGAIMAGE_H
+#define TGAIMAGE_H
+
 #include <cstdint>
 #include <fstream>
 #include <vector>
@@ -28,22 +30,32 @@ struct TGAColor {
 
 struct TGAImage {
   enum Format { GRAYSCALE = 1, RGB = 3, RGBA = 4 };
+
   TGAImage() = default;
   TGAImage(const int w, const int h, const int bpp);
+
   bool read_tga_file(const std::string filename);
   bool write_tga_file(const std::string filename, const bool vflip = true,
                       const bool rle = true) const;
+
   void flip_horizontally();
   void flip_vertically();
+
   TGAColor get(const int x, const int y) const;
   void set(const int x, const int y, const TGAColor& c);
+
   int width() const;
   int height() const;
 
  private:
   bool load_rle_data(std::ifstream& in);
   bool unload_rle_data(std::ofstream& out) const;
-  int w = 0, h = 0;
-  std::uint8_t bpp = 0;
-  std::vector<std::uint8_t> data = {};
+
+  int w{};
+  int h{};
+
+  std::uint8_t bpp{};
+  std::vector<std::uint8_t> data{};
 };
+
+#endif
