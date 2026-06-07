@@ -44,7 +44,9 @@ void draw_triangle(Point3D a, Point3D b, Point3D c, TGAImage& framebuffer) {
         continue;
       }
 
-      unsigned char z{
+      // Using z coordinates to create a grayscale,
+      // interpolating the color as the weighted sum below
+      TGAColor z{
           static_cast<unsigned char>(alpha * a.z + beta * b.z + gamma * c.z)};
 
       framebuffer.set(x, y, {z});
