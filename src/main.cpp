@@ -7,46 +7,34 @@ struct Point2D {
   int y{};
 };
 
-void draw_line(Point2D a, Point2D b, TGAImage& framebuffer,
-               const TGAColor& color) {
-  bool is_steep{std::abs(a.x - b.x) < std::abs(a.y - b.y)};
-  // if the line is steep, we transpose the image
-  if (is_steep) {
-    std::swap(a.x, a.y);
-    std::swap(b.x, b.y);
-  }
-
-  // make it left−to−right
-  if (a.x > b.x) {
-    std::swap(a.x, b.x);
-    std::swap(a.y, b.y);
-  }
-
-  int y{a.y};
-  int error{0};
-
-  for (int x{a.x}; x <= b.x; ++x) {
-    // if transposed, de−transpose
-    if (is_steep) {
-      framebuffer.set(static_cast<int>(y), x, color);
-    } else {
-      framebuffer.set(x, static_cast<int>(y), color);
-    }
-
-    error += 2 * std::abs(b.y - a.y);
-
-    if (error > b.x - a.x) {
-      y += b.y > a.y ? 1 : -1;
-      error -= 2 * (b.x - a.x);
-    }
-  }
+double signed_triangle_area(Point2D a, Point2D b, Point2D c) {
+  return 0.5 * ((b.y - a.y) * (b.x + a.x) + (c.y - b.y) * (c.x + b.x) +
+                (a.y - c.y) * (a.x + c.x));
 }
 
 void draw_triangle(Point2D a, Point2D b, Point2D c, TGAImage& framebuffer,
                    TGAColor color) {
-  draw_line(a, b, framebuffer, color);
-  draw_line(b, c, framebuffer, color);
-  draw_line(c, a, framebuffer, color);
+  Point2D bounding_box_min{std::min(std::min(a.x, b.x), c.x),
+                           std::min(std::min(a.y, b.y), c.y)};
+  Point2D bounding_box_max{std::max(std::max(a.x, b.x), c.x),
+                           std::max(std::max(a.y, b.y), c.y)};
+
+  double total_area{signed_triangle_area(a, b, c)};
+  if (total_area < 1) return;
+
+  for (int x{bounding_box_min.x}; x <= bounding_box_max.x; ++x) {
+    for (int y{bounding_box_min.y}; y <= bounding_box_max.y; ++y) {
+      double alpha{signed_triangle_area({x, y}, b, c) / total_area};
+      double beta{signed_triangle_area({x, y}, c, a) / total_area};
+      double gamma{signed_triangle_area({x, y}, a, b) / total_area};
+
+      if (alpha < 0 || beta < 0 || gamma < 0) {
+        continue;
+      }
+
+      framebuffer.set(x, y, color);
+    }
+  }
 }
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
@@ -72,7 +60,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
   framebuffer.write_tga_file("framebuffer.tga");
 
-  std::cout << "Time elapsed: " << t.elapsed() << " seconds\n";
+  t.print_time_elapsed();
 
   return 0;
 }
