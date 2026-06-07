@@ -22,7 +22,7 @@ bool TGAImage::read_tga_file(const std::string filename) {
   w = header.width;
   h = header.height;
   bpp = header.bitsperpixel >> 3;
-  if (w <= 0 || h <= 0 || (bpp != GRAYSCALE && bpp != RGB && bpp != RGBA)) {
+  if (w <= 0 || h <= 0 || (bpp != grayscale && bpp != rgb && bpp != rgba)) {
     std::cerr << "bad bpp (or width/height) value\n";
     return false;
   }
@@ -113,7 +113,7 @@ bool TGAImage::write_tga_file(const std::string filename, const bool vflip,
   header.bitsperpixel = bpp << 3;
   header.width = w;
   header.height = h;
-  header.datatypecode = (bpp == GRAYSCALE ? (rle ? 11 : 3) : (rle ? 10 : 2));
+  header.datatypecode = (bpp == grayscale ? (rle ? 11 : 3) : (rle ? 10 : 2));
   header.imagedescriptor =
       vflip ? 0x00 : 0x20;  // top-left or bottom-left origin
   out.write(reinterpret_cast<const char*>(&header), sizeof(header));

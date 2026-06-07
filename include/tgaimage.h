@@ -29,7 +29,7 @@ struct TGAColor {
 };
 
 struct TGAImage {
-  enum Format { GRAYSCALE = 1, RGB = 3, RGBA = 4 };
+  enum format { grayscale = 1, rgb = 3, rgba = 4 };
 
   TGAImage() = default;
   TGAImage(const int w, const int h, const int bpp);
