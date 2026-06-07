@@ -18,7 +18,7 @@ if(IWYU_PATH)
   set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU_PATH})
   message(STATUS "IWYU found: ${IWYU_PATH}")
 else()
-   message(WARNING "IWYU not found: The analysis will be omitted.")
+  message(WARNING "IWYU not found: The analysis will be omitted.")
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
