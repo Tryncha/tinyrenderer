@@ -20,7 +20,6 @@ void draw_triangle(Point2D a, Point2D b, Point2D c, TGAImage& framebuffer,
                            std::max(std::max(a.y, b.y), c.y)};
 
   double total_area{signed_triangle_area(a, b, c)};
-  if (total_area < 1) return;
 
   for (int x{bounding_box_min.x}; x <= bounding_box_max.x; ++x) {
     for (int y{bounding_box_min.y}; y <= bounding_box_max.y; ++y) {
