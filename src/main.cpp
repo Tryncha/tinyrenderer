@@ -14,6 +14,8 @@ double signed_triangle_area(Point2D a, Point2D b, Point2D c) {
 
 void draw_triangle(Point2D a, Point2D b, Point2D c, TGAImage& framebuffer,
                    TGAColor color) {
+  // bounding box for the triangle
+  // defined by its top left and bottom right corners
   Point2D bounding_box_min{std::min(std::min(a.x, b.x), c.x),
                            std::min(std::min(a.y, b.y), c.y)};
   Point2D bounding_box_max{std::max(std::max(a.x, b.x), c.x),
@@ -21,12 +23,16 @@ void draw_triangle(Point2D a, Point2D b, Point2D c, TGAImage& framebuffer,
 
   double total_area{signed_triangle_area(a, b, c)};
 
+  // backface culling + discarding triangles that cover less than a pixel
+  // if (total_area < 1) return;
+
   for (int x{bounding_box_min.x}; x <= bounding_box_max.x; ++x) {
     for (int y{bounding_box_min.y}; y <= bounding_box_max.y; ++y) {
       double alpha{signed_triangle_area({x, y}, b, c) / total_area};
       double beta{signed_triangle_area({x, y}, c, a) / total_area};
       double gamma{signed_triangle_area({x, y}, a, b) / total_area};
 
+      // negative barycentric coordinate => the pixel is outside the triangle
       if (alpha < 0 || beta < 0 || gamma < 0) {
         continue;
       }
