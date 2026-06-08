@@ -39,14 +39,11 @@ void draw_triangle(Point2D a, int intensity_a, Point2D b, int intensity_b,
         continue;
       }
 
-      double lower_limit{0.1};
-      double upper_limit{0.9};
-
       // Draw a "wireframe" omiting center points
       // clang-format off
-      if ((lower_limit < alpha && alpha < upper_limit) &&
-          (lower_limit < beta  && beta  < upper_limit) &&
-          (lower_limit < gamma && gamma < upper_limit)) {
+      if ((constants::lower_limit < alpha && alpha < constants::upper_limit) &&
+          (constants::lower_limit < beta  && beta  < constants::upper_limit) &&
+          (constants::lower_limit < gamma && gamma < constants::upper_limit)) {
         // clang-format on
         continue;
       }

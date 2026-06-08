@@ -7,6 +7,9 @@ namespace constants {
 constexpr int width{64};
 constexpr int height{64};
 
+constexpr double lower_limit{0.1};
+constexpr double upper_limit{0.9};
+
 namespace colors {
 // clang-format off
 // attention: order         B    G    R    A
