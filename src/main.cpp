@@ -7,18 +7,13 @@ struct Point2D {
   int y{};
 };
 
-struct Point3D {
-  int x{};
-  int y{};
-  int z{};
-};
-
 double signed_triangle_area(Point2D a, Point2D b, Point2D c) {
   return 0.5 * ((b.y - a.y) * (b.x + a.x) + (c.y - b.y) * (c.x + b.x) +
                 (a.y - c.y) * (a.x + c.x));
 }
 
-void draw_triangle(Point3D a, Point3D b, Point3D c, TGAImage& framebuffer) {
+void draw_triangle(Point2D a, int intensity_a, Point2D b, int intensity_b,
+                   Point2D c, int intensity_c, TGAImage& framebuffer) {
   // bounding box for the triangle
   // defined by its top left and bottom right corners
   Point2D bounding_box_min{std::min(std::min(a.x, b.x), c.x),
@@ -44,12 +39,32 @@ void draw_triangle(Point3D a, Point3D b, Point3D c, TGAImage& framebuffer) {
         continue;
       }
 
+      double lower_limit{0.1};
+      double upper_limit{0.9};
+
+      // Draw a "wireframe" omiting center points
+      // clang-format off
+      if ((lower_limit < alpha && alpha < upper_limit) &&
+          (lower_limit < beta  && beta  < upper_limit) &&
+          (lower_limit < gamma && gamma < upper_limit)) {
+        // clang-format on
+        continue;
+      }
+
       // Using z coordinates to create a grayscale,
       // interpolating the color as the weighted sum below
-      TGAColor z{
-          static_cast<unsigned char>(alpha * a.z + beta * b.z + gamma * c.z)};
+      // clang-format off
+      auto intensity_red{
+          static_cast<std::uint8_t>(alpha * intensity_a)};
+      auto intensity_green{
+          static_cast<std::uint8_t>(beta  * intensity_b)};
+      auto intensity_blue{
+          static_cast<std::uint8_t>(gamma * intensity_c)};
+      // clang-format on
 
-      framebuffer.set(x, y, {z});
+      framebuffer.set(x, y, {intensity_red, intensity_green, intensity_blue});
+      // Following the inverse order of colors, it should be
+      // {intensity_blue, intensity_green, intensity_red} instead
     }
   }
 }
@@ -58,13 +73,13 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   Timer t{};
 
   TGAImage framebuffer(constants::width, constants::height,
-                       TGAImage::format::grayscale);
+                       TGAImage::format::rgb);
 
-  Point3D a{17, 4, 13};
-  Point3D b{55, 39, 128};
-  Point3D c{23, 59, 255};
+  Point2D a{17, 4};
+  Point2D b{55, 39};
+  Point2D c{23, 59};
 
-  draw_triangle(a, b, c, framebuffer);
+  draw_triangle(a, 255, b, 255, c, 255, framebuffer);
 
   framebuffer.write_tga_file("framebuffer.tga");
   t.print_time_elapsed();
