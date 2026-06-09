@@ -1,7 +1,3 @@
-#include <cmath>
-#include <iostream>
-#include <utility>
-
 #include "constants.h"
 #include "model.h"
 #include "random-mt.h"
@@ -13,37 +9,50 @@ struct Point2D {
   int y{};
 };
 
-void draw_line(Point2D a, Point2D b, TGAImage& framebuffer,
-               const TGAColor& color) {
-  bool is_steep{std::abs(a.x - b.x) < std::abs(a.y - b.y)};
-  // if the line is steep, we transpose the image
-  if (is_steep) {
-    std::swap(a.x, a.y);
-    std::swap(b.x, b.y);
-  }
+double signed_triangle_area(Point2D a, Point2D b, Point2D c) {
+  // clang-format off
+        return 0.5 * ((b.y - a.y) * (b.x + a.x)
+                   +  (c.y - b.y) * (c.x + b.x)
+                   +  (a.y - c.y) * (a.x + c.x));
+  // clang-format on
+}
 
-  // make it left−to−right
-  if (a.x > b.x) {
-    std::swap(a.x, b.x);
-    std::swap(a.y, b.y);
-  }
+// Bounding box for the triangle defined by
+// its top left and bottom right corners
+void draw_triangle(Point2D a, int intensity_a, Point2D b, int intensity_b,
+                   Point2D c, int intensity_c, TGAImage& framebuffer,
+                   TGAImage& zbuffer, TGAColor color) {
+  Point2D bounding_box_min{std::min(std::min(a.x, b.x), c.x),
+                           std::min(std::min(a.y, b.y), c.y)};
+  Point2D bounding_box_max{std::max(std::max(a.x, b.x), c.x),
+                           std::max(std::max(a.y, b.y), c.y)};
 
-  int y{a.y};
-  int error{0};
+  double total_area{signed_triangle_area(a, b, c)};
 
-  for (int x{a.x}; x <= b.x; ++x) {
-    // if transposed, de−transpose
-    if (is_steep) {
-      framebuffer.set(static_cast<int>(y), x, color);
-    } else {
-      framebuffer.set(x, static_cast<int>(y), color);
-    }
+  // Backface culling + discarding triangles that cover less than a pixel
+  if (total_area < 1) return;
 
-    error += 2 * std::abs(b.y - a.y);
+  for (int x{bounding_box_min.x}; x <= bounding_box_max.x; ++x) {
+    for (int y{bounding_box_min.y}; y <= bounding_box_max.y; ++y) {
+      // clang-format off
+        double alpha{signed_triangle_area({x, y}, b, c) / total_area};
+        double beta {signed_triangle_area({x, y}, c, a) / total_area};
+        double gamma{signed_triangle_area({x, y}, a, b) / total_area};
+      // clang-format on
 
-    if (error > b.x - a.x) {
-      y += b.y > a.y ? 1 : -1;
-      error -= 2 * (b.x - a.x);
+      if (alpha < 0 || beta < 0 || gamma < 0) {
+        continue;
+      }
+
+      const auto depth_gray = static_cast<std::uint8_t>(
+          alpha * intensity_a + beta * intensity_b + gamma * intensity_c);
+
+      if (depth_gray <= zbuffer.get(x, y)[0]) {
+        continue;
+      }
+
+      framebuffer.set(x, y, color);
+      zbuffer.set(x, y, {depth_gray});
     }
   }
 }
@@ -52,73 +61,35 @@ void draw_line(Point2D a, Point2D b, TGAImage& framebuffer,
 // Second, since the input models are scaled to have fit in the [-1,1]^3 world
 // coordinates, we want to shift the vector (x,y) and then scale it to span the
 // entire screen.
-std::pair<int, int> project(Vec<3> v) {
-  return {(v[0] + 1.0f) * constants::width / 2,
-          (v[1] + 1.0f) * constants::height / 2};
+std::pair<Point2D, int> project(Vec<3> v) {
+  // clang-format off
+  return {{static_cast<int>((v[0] + 1.0f) * constants::width  / 2),
+           static_cast<int>((v[1] + 1.0f) * constants::height / 2)},
+                            (v[2] + 1.0f) * 255.0f / 2};
+  // clang-format on
 }
 
-double signed_triangle_area(Point2D a, Point2D b, Point2D c) {
-  return 0.5 * ((b.y - a.y) * (b.x + a.x) + (c.y - b.y) * (c.x + b.x) +
-                (a.y - c.y) * (a.x + c.x));
-}
-
-// Using bounding boxes
-void draw_triangle(Point2D a, Point2D b, Point2D c, TGAImage& framebuffer,
-                   TGAColor color) {
-  Point2D bounding_box_min{std::min(std::min(a.x, b.x), c.x),
-                           std::min(std::min(a.y, b.y), c.y)};
-  Point2D bounding_box_max{std::max(std::max(a.x, b.x), c.x),
-                           std::max(std::max(a.y, b.y), c.y)};
-
-  double total_area{signed_triangle_area(a, b, c)};
-  if (total_area < 1) return;
-
-  for (int x{bounding_box_min.x}; x <= bounding_box_max.x; ++x) {
-    for (int y{bounding_box_min.y}; y <= bounding_box_max.y; ++y) {
-      double alpha{signed_triangle_area({x, y}, b, c) / total_area};
-      double beta{signed_triangle_area({x, y}, c, a) / total_area};
-      double gamma{signed_triangle_area({x, y}, a, b) / total_area};
-
-      if (alpha < 0 || beta < 0 || gamma < 0) {
-        continue;
-      }
-
-      framebuffer.set(x, y, color);
-    }
-  }
-}
-
-void build_model(const std::string filename, TGAImage& framebuffer) {
+void build_model(const std::string filename, TGAImage& framebuffer,
+                 TGAImage& zbuffer) {
   Model model{filename};
 
   // Iterate through all triangles
   for (int i{0}; i < model.get_num_faces(); ++i) {
-    const auto [ax, ay] = project(model.get_vert(i, 0));
-    const auto [bx, by] = project(model.get_vert(i, 1));
-    const auto [cx, cy] = project(model.get_vert(i, 2));
+    const auto [a, intensity_a] = project(model.get_vert(i, 0));
+    const auto [b, intensity_b] = project(model.get_vert(i, 1));
+    const auto [c, intensity_c] = project(model.get_vert(i, 2));
 
     TGAColor random_colors{};
-    for (int c{0}; c < 3; ++c) {
-      random_colors[c] = static_cast<std::uint8_t>(random_mt::get(0, 255));
+    for (int j{0}; j < 3; ++j) {
+      random_colors[j] = static_cast<std::uint8_t>(random_mt::get(0, 255));
     }
 
-    draw_triangle({ax, ay}, {bx, by}, {cx, cy}, framebuffer, random_colors);
-
-    // draw_line({ax, ay}, {bx, by}, framebuffer, constants::colors::red);
-    // draw_line({bx, by}, {cx, cy}, framebuffer, constants::colors::red);
-    // draw_line({cx, cy}, {ax, ay}, framebuffer, constants::colors::red);
+    draw_triangle({a.x, a.y}, intensity_a, {b.x, b.y}, intensity_b, {c.x, c.y},
+                  intensity_c, framebuffer, zbuffer, random_colors);
   }
-
-  // iterate through all vertices
-  // for (int i{0}; i < model.get_num_verts(); ++i) {
-  //   const Vec<3> v{model.get_vert(i)};  // get i-th vertex
-  //   const auto [x, y] = project(v);     // project it to the screen
-
-  //   framebuffer.set(x, y, constants::colors::white);
-  // }
 }
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+int main([[maybe_unused]] int argc, char** argv) {
   Timer t{};
 
   if (argc != 2) {
@@ -126,10 +97,15 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
     return 1;
   }
 
-  TGAImage framebuffer(constants::width, constants::height, TGAImage::RGB);
+  // clang-format off
+  TGAImage framebuffer{constants::width, constants::height, TGAImage::format::rgb};
+  TGAImage zbuffer    {constants::width, constants::height, TGAImage::format::grayscale};
+  // clang-format on
 
-  build_model(argv[1], framebuffer);
+  build_model(argv[1], framebuffer, zbuffer);
+
   framebuffer.write_tga_file("framebuffer.tga");
+  zbuffer.write_tga_file("zbuffer.tga");
 
   std::cout << "Time elapsed: " << t.elapsed() << " seconds\n";
 
