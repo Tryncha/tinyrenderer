@@ -6,6 +6,11 @@
 #include <cstddef>
 #include <iostream>
 
+#include "matrix.h"
+
+template <std::size_t N, std::size_t M>
+struct Matrix;
+
 // Vector (mathematics and physics) implementation
 template <std::size_t N>
 struct Vector {
@@ -91,6 +96,28 @@ double operator*(const Vector<N>& lhv, const Vector<N>& rhv) {
 
   for (std::size_t i{0}; i < N; ++i) {
     result += lhv[i] * rhv[i];
+  }
+
+  return result;
+}
+
+template <std::size_t N, std::size_t M>
+Vector<M> operator*(const Vector<N>& lhv, const Matrix<N, M>& rhm) {
+  Vector<N> result{};
+
+  for (std::size_t i{0}; i < N; ++i) {
+    result[i] = lhv * rhm[i];
+  }
+
+  return result;
+}
+
+template <std::size_t N, std::size_t M>
+Vector<N> operator*(const Matrix<N, M>& lhm, const Vector<M>& rhv) {
+  Vector<N> result{};
+
+  for (std::size_t i{0}; i < N; ++i) {
+    result[i] = lhm[i] * rhv;
   }
 
   return result;
