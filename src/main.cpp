@@ -62,14 +62,14 @@ void draw_triangle(Point2D a, int intensity_a, Point2D b, int intensity_b,
   }
 }
 
-Vector<3> rotate_x(Vector<3> v, double theta) {
-  // clang-format off
-  Matrix<3, 3> rotation_matrix_x{{{{1,        0       ,         0       },
-                                   {0, std::cos(theta), -std::sin(theta)},
-                                   {0, std::sin(theta),  std::cos(theta)}}}};
-  // clang-format on
-  return rotation_matrix_x * v;
-}
+// Vector<3> rotate_x(Vector<3> v, double theta) {
+//   // clang-format off
+//   Matrix<3, 3> rotation_matrix_x{{{{1,        0       ,         0       },
+//                                    {0, std::cos(theta), -std::sin(theta)},
+//                                    {0, std::sin(theta),  std::cos(theta)}}}};
+//   // clang-format on
+//   return rotation_matrix_x * v;
+// }
 
 Vector<3> rotate_y(Vector<3> v, double theta) {
   // clang-format off
@@ -80,13 +80,17 @@ Vector<3> rotate_y(Vector<3> v, double theta) {
   return rotation_matrix_y * v;
 }
 
-Vector<3> rotate_z(Vector<3> v, double theta) {
-  // clang-format off
-  Matrix<3, 3> rotation_matrix_z{{{{std::cos(theta), -std::sin(theta), 0},
-                                   {std::sin(theta),  std::cos(theta), 0},
-                                   {       0       ,         0       , 1}}}};
-  // clang-format on
-  return rotation_matrix_z * v;
+// Vector<3> rotate_z(Vector<3> v, double theta) {
+//   // clang-format off
+//   Matrix<3, 3> rotation_matrix_z{{{{std::cos(theta), -std::sin(theta), 0},
+//                                    {std::sin(theta),  std::cos(theta), 0},
+//                                    {       0       ,         0       , 1}}}};
+//   // clang-format on
+//   return rotation_matrix_z * v;
+// }
+
+Vector<3> persp(Vector<3> v, double camera_dist) {
+  return v * (1 / (1 - (v[2] / camera_dist)));  // v[2] = v.z
 }
 
 // First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
@@ -104,17 +108,20 @@ std::pair<Point2D, int> project(Vector<3> v) {
 void build_model(const std::string filename, TGAImage& framebuffer,
                  TGAImage& zbuffer) {
   Model model{filename};
+
   // Rotation angle about the y-axis
   constexpr double theta{(std::numbers::pi) / 6};
+  // Camera location on the z-xis
+  constexpr double camera_dist{3.0};
 
   // Iterate through all triangles
   for (int i{0}; i < model.get_num_faces(); ++i) {
     const auto [a, intensity_a] =
-        project(rotate_y(model.get_vert(i, 0), theta));
+        project(persp(rotate_y(model.get_vert(i, 0), theta), camera_dist));
     const auto [b, intensity_b] =
-        project(rotate_y(model.get_vert(i, 1), theta));
+        project(persp(rotate_y(model.get_vert(i, 1), theta), camera_dist));
     const auto [c, intensity_c] =
-        project(rotate_y(model.get_vert(i, 2), theta));
+        project(persp(rotate_y(model.get_vert(i, 2), theta), camera_dist));
 
     TGAColor random_colors{};
     for (int j{0}; j < 3; ++j) {
