@@ -7,17 +7,22 @@
 #include <cstddef>
 #include <iostream>
 
+#include "vector.h"
+
+template <std::size_t N>
+struct Vector;
+
 // Matrix implementation
 template <std::size_t N, std::size_t M>
 struct Matrix {
-  std::array<std::array<double, M>, N> values{};
+  std::array<Vector<M>, N> values{};
 
-  std::array<double, M>& operator[](std::size_t i) {
+  Vector<M>& operator[](std::size_t i) {
     assert(i < N);
     return values[i];
   }
 
-  const std::array<double, M>& operator[](std::size_t i) const {
+  const Vector<M>& operator[](std::size_t i) const {
     assert(i < N);
     return values[i];
   }
