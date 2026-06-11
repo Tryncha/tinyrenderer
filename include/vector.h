@@ -28,6 +28,60 @@ struct Vector {
   }
 };
 
+// Specializations for N = 2,3,4 replace the generic array-based layout with
+// named members (x, y, z, w), enabling cleaner, semantically meaningful field
+// access (v.x, v.y, v.z, v.w) without losing index-based access via operator[].
+template <>
+struct Vector<2> {
+  double x{};
+  double y{};
+
+  double& operator[](std::size_t i) {
+    assert(i < 2);
+    return (i == 0 ? x : y);
+  }
+
+  const double& operator[](std::size_t i) const {
+    assert(i < 2);
+    return (i == 0 ? x : y);
+  }
+};
+
+template <>
+struct Vector<3> {
+  double x{};
+  double y{};
+  double z{};
+
+  double& operator[](std::size_t i) {
+    assert(i < 3);
+    return (i == 0 ? x : (i == 1 ? y : z));
+  }
+
+  const double& operator[](std::size_t i) const {
+    assert(i < 3);
+    return (i == 0 ? x : (i == 1 ? y : z));
+  }
+};
+
+template <>
+struct Vector<4> {
+  double x{};
+  double y{};
+  double z{};
+  double w{};
+
+  double& operator[](std::size_t i) {
+    assert(i < 4);
+    return (i == 0 ? x : (i == 1 ? y : (i == 2 ? z : w)));
+  }
+
+  const double& operator[](std::size_t i) const {
+    assert(i < 4);
+    return (i == 0 ? x : (i == 1 ? y : (i == 2 ? z : w)));
+  }
+};
+
 template <std::size_t N>
 std::ostream& operator<<(std::ostream& out, const Vector<N>& v) {
   std::cout << '[';

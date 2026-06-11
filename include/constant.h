@@ -19,6 +19,12 @@ constexpr TGAColor blue  {255, 128,  64, 255};
 constexpr TGAColor yellow{  0, 200, 255, 255};
 }  // namespace color
 
+namespace matrix{
+inline Matrix<4, 4> ModelView{};
+inline Matrix<4, 4> Perspective{};
+inline Matrix<4, 4> Viewport{};
+}
+
 namespace camera {
 constexpr Vector<3> eye   {-1,  0,  2};
 constexpr Vector<3> center{ 0,  0,  0};

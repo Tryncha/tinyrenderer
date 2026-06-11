@@ -8,18 +8,10 @@ project(tinyrenderer VERSION 0.1.0 LANGUAGES CXX)
 
 add_executable(${PROJECT_NAME}
   src/main.cpp
-  src/tgaimage.cpp
   src/model.cpp
+  src/my_gl.cpp
+  src/tgaimage.cpp
 )
-
-find_program(IWYU_PATH NAMES include-what-you-use iwyu REQUIRED)
-
-if(IWYU_PATH)
-  set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU_PATH})
-  message(STATUS "IWYU found: ${IWYU_PATH}")
-else()
-  message(WARNING "IWYU not found: The analysis will be omitted.")
-endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include

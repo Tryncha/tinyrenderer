@@ -32,7 +32,7 @@ struct TGAImage {
   enum format { grayscale = 1, rgb = 3, rgba = 4 };
 
   TGAImage() = default;
-  TGAImage(const int w, const int h, const int bpp);
+  TGAImage(const int w, const int h, const int bpp, TGAColor c);
 
   bool read_tga_file(const std::string filename);
   bool write_tga_file(const std::string filename, const bool vflip = true,
