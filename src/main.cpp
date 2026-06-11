@@ -1,6 +1,3 @@
-#include <cmath>
-#include <numbers>
-
 #include "constant.h"
 #include "matrix.h"
 #include "model.h"
@@ -9,148 +6,146 @@
 #include "timer.h"
 #include "vector.h"
 
-struct Point2D {
-  int x{};
-  int y{};
-};
+// clang-format off
+void set_model_view(Matrix<4, 4>& ModelView,
+                    Vector<3> eye, Vector<3> center, Vector<3> up) {
+  Vector<3> n{normalize(eye - center)};
+  Vector<3> l{normalize(cross(up, n))};
+  Vector<3> m{normalize(cross(n, l))};
 
-double signed_triangle_area(Point2D a, Point2D b, Point2D c) {
-  // clang-format off
-        return 0.5 * ((b.y - a.y) * (b.x + a.x)
-                   +  (c.y - b.y) * (c.x + b.x)
-                   +  (a.y - c.y) * (a.x + c.x));
-  // clang-format on
+  ModelView = Matrix<4, 4>{{{{l[0], l[1], l[2],          0},
+                             {m[0], m[1], m[2],          0},
+                             {n[0], n[1], n[2],          0},
+                             {   0,    0,    0,          1}}}}
+
+            * Matrix<4, 4>{{{{   1,    0,    0, -center[0]},
+                             {   0,    1,    0, -center[1]},
+                             {   0,    0,    1, -center[2]},
+                             {   0,    0,    0,          1}}}};
 }
 
-// Bounding box for the triangle defined by
-// its top left and bottom right corners
-void draw_triangle(Point2D a, int intensity_a, Point2D b, int intensity_b,
-                   Point2D c, int intensity_c, TGAImage& framebuffer,
-                   TGAImage& zbuffer, TGAColor color) {
-  Point2D bounding_box_min{std::min(std::min(a.x, b.x), c.x),
-                           std::min(std::min(a.y, b.y), c.y)};
-  Point2D bounding_box_max{std::max(std::max(a.x, b.x), c.x),
-                           std::max(std::max(a.y, b.y), c.y)};
+void set_perspective(Matrix<4, 4>& Perspective, double d) {
+  Perspective = {{{{1, 0,      0, 0},
+                   {0, 1,      0, 0},
+                   {0, 0,      1, 0},
+                   {0, 0, -1 / d, 1}}}};
+}
 
-  double total_area{signed_triangle_area(a, b, c)};
+void set_viewport(Matrix<4, 4>& Viewport, int x, int y, int width, int height) {
+  Viewport = {{{{width / 2.0,            0, 0, x + (width  / 2.0)},
+                {          0, height / 2.0, 0, y + (height / 2.0)},
+                {          0,            0, 1,                  0},
+                {          0,            0, 0,                  1}}}};
+}
 
-  // Backface culling + discarding triangles that cover less than a pixel
-  if (total_area < 1) return;
+// clang-format on
+void rasterize(const Matrix<4, 4>& Viewport,
+               const std::array<Vector<4>, 3>& clip,
+               std::vector<double>& zbuffer, TGAImage& framebuffer,
+               TGAColor color) {
+  // clang-format off
+  // Normalized device coordinates
+  std::array<Vector<4>, 3> ndc{clip[0] / clip[0][3],
+                               clip[1] / clip[1][3],
+                               clip[2] / clip[2][3]};
+  // clang-format on
 
-  for (int x{bounding_box_min.x}; x <= bounding_box_max.x; ++x) {
-    for (int y{bounding_box_min.y}; y <= bounding_box_max.y; ++y) {
-      // clang-format off
-        double alpha{signed_triangle_area({x, y}, b, c) / total_area};
-        double beta {signed_triangle_area({x, y}, c, a) / total_area};
-        double gamma{signed_triangle_area({x, y}, a, b) / total_area};
-      // clang-format on
+  // Screen coordinates
+  std::array<Vector<2>, 3> screen{
+      {{(Viewport * ndc[0])[0], (Viewport * ndc[0])[1]},
+       {(Viewport * ndc[1])[0], (Viewport * ndc[1])[1]},
+       {(Viewport * ndc[2])[0], (Viewport * ndc[2])[1]}}};
 
-      if (alpha < 0 || beta < 0 || gamma < 0) {
-        continue;
-      }
+  Matrix<3, 3> abc = {{{{screen[0][0], screen[0][1], 1.0},
+                        {screen[1][0], screen[1][1], 1.0},
+                        {screen[2][0], screen[2][1], 1.0}}}};
 
-      const auto depth_gray = static_cast<std::uint8_t>(
-          alpha * intensity_a + beta * intensity_b + gamma * intensity_c);
+  // backface culling + discarding triangles that cover less than a pixel
+  if (laplace_det(abc) < 1) return;
 
-      if (depth_gray <= zbuffer.get(x, y)[0]) {
-        continue;
-      }
+  // bounding box for the triangle
+  auto [bbminx, bbmaxx] =
+      std::minmax({screen[0][0], screen[1][0], screen[2][0]});
 
+  // defined by its top left and bottom right corners
+  auto [bbminy, bbmaxy] =
+      std::minmax({screen[0][1], screen[1][1], screen[2][1]});
+
+  // clip the bounding box by the screen
+  for (int x{std::max<int>(static_cast<int>(bbminx), 0)};
+       x <= std::min<int>(static_cast<int>(bbmaxx), framebuffer.width() - 1);
+       ++x) {
+    for (int y{std::max<int>(static_cast<int>(bbminy), 0)};
+         y <= std::min<int>(static_cast<int>(bbmaxy), framebuffer.height() - 1);
+         ++y) {
+      // barycentric coordinates of {x,y} w.r.t the triangle
+      Vector<3> bc{transpose(inverse(abc)) * Vector<3>{static_cast<double>(x),
+                                                       static_cast<double>(y),
+                                                       1.0}};
+
+      // negative barycentric coordinate => the pixel is outside the triangle
+      if (bc[0] < 0 || bc[1] < 0 || bc[2] < 0) continue;
+
+      double z{bc * Vector<3>{ndc[0][2], ndc[1][2], ndc[2][2]}};
+      auto zbuffer_idx = static_cast<std::size_t>(x + y * framebuffer.width());
+
+      if (z <= zbuffer[zbuffer_idx]) continue;
+
+      zbuffer[zbuffer_idx] = z;
       framebuffer.set(x, y, color);
-      zbuffer.set(x, y, {depth_gray});
     }
   }
 }
 
-// Vector<3> rotate_x(Vector<3> v, double theta) {
-//   // clang-format off
-//   Matrix<3, 3> rotation_matrix_x{{{{1,        0       ,         0       },
-//                                    {0, std::cos(theta), -std::sin(theta)},
-//                                    {0, std::sin(theta),  std::cos(theta)}}}};
-//   // clang-format on
-//   return rotation_matrix_x * v;
-// }
-
-Vector<3> rotate_y(Vector<3> v, double theta) {
-  // clang-format off
-  Matrix<3, 3> rotation_matrix_y{{{{ std::cos(theta), 0, std::sin(theta)},
-                                   {        0       , 1,        0       },
-                                   {-std::sin(theta), 0, std::cos(theta)}}}};
-  // clang-format on
-  return rotation_matrix_y * v;
-}
-
-// Vector<3> rotate_z(Vector<3> v, double theta) {
-//   // clang-format off
-//   Matrix<3, 3> rotation_matrix_z{{{{std::cos(theta), -std::sin(theta), 0},
-//                                    {std::sin(theta),  std::cos(theta), 0},
-//                                    {       0       ,         0       , 1}}}};
-//   // clang-format on
-//   return rotation_matrix_z * v;
-// }
-
-Vector<3> persp(Vector<3> v, double camera_dist) {
-  return v * (1 / (1 - (v[2] / camera_dist)));  // v[2] = v.z
-}
-
-// First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
-// Second, since the input models are scaled to have fit in the [-1,1]^3 world
-// coordinates, we want to shift the vector (x,y) and then scale it to span the
-// entire screen.
-std::pair<Point2D, int> project(Vector<3> v) {
-  // clang-format off
-  return {{static_cast<int>((v[0] + 1.0f) * constant::width  / 2),
-           static_cast<int>((v[1] + 1.0f) * constant::height / 2)},
-                            (v[2] + 1.0f) * 255.0f / 2};
-  // clang-format on
-}
-
-void build_model(const std::string filename, TGAImage& framebuffer,
-                 TGAImage& zbuffer) {
-  Model model{filename};
-
-  // Rotation angle about the y-axis
-  constexpr double theta{(std::numbers::pi) / 6};
-  // Camera location on the z-xis
-  constexpr double camera_dist{3.0};
-
-  // Iterate through all triangles
-  for (int i{0}; i < model.get_num_faces(); ++i) {
-    const auto [a, intensity_a] =
-        project(persp(rotate_y(model.get_vert(i, 0), theta), camera_dist));
-    const auto [b, intensity_b] =
-        project(persp(rotate_y(model.get_vert(i, 1), theta), camera_dist));
-    const auto [c, intensity_c] =
-        project(persp(rotate_y(model.get_vert(i, 2), theta), camera_dist));
-
-    TGAColor random_colors{};
-    for (int j{0}; j < 3; ++j) {
-      random_colors[j] = static_cast<std::uint8_t>(random_mt::get(0, 255));
-    }
-
-    draw_triangle({a.x, a.y}, intensity_a, {b.x, b.y}, intensity_b, {c.x, c.y},
-                  intensity_c, framebuffer, zbuffer, random_colors);
-  }
-}
-
-int main([[maybe_unused]] int argc, char** argv) {
+int main(int argc, char** argv) {
   Timer t{};
 
   if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " obj/model.obj" << '\n';
+    std::cerr << "Please use: " << argv[0] << " assets/obj/model.obj" << '\n';
     return 1;
   }
 
+  Matrix<4, 4> ModelView{};
+  Matrix<4, 4> Perspective{};
+  Matrix<4, 4> Viewport{};
+
   // clang-format off
+  set_model_view (ModelView,   camera::eye, camera::center, camera::up);
+
+  set_perspective(Perspective, norm(camera::eye - camera::center));
+
+  set_viewport   (Viewport,  constant::width / 16,      constant::height / 16,
+                            (constant::width * 7) / 8, (constant::height * 7) / 8);
+
   TGAImage framebuffer{constant::width, constant::height, TGAImage::format::rgb};
-  TGAImage zbuffer    {constant::width, constant::height, TGAImage::format::grayscale};
+
+  // Note: () not {} — brace-initialization would call the initializer_list
+  // constructor, creating a 2-element vector instead of width * height elements
+  std::vector<double> zbuffer(constant::width * constant::height, -std::numeric_limits<double>::max());
   // clang-format on
 
-  build_model(argv[1], framebuffer, zbuffer);
+  for (int m{1}; m < argc; ++m) {
+    Model model{argv[m]};
+
+    for (int i{0}; i < model.get_num_faces(); ++i) {
+      std::array<Vector<4>, 3> clip{};
+
+      for (const auto d : {0, 1, 2}) {
+        Vector<3> v{model.get_vert(i, d)};
+        clip[static_cast<std::size_t>(d)] =
+            Perspective * ModelView * Vector<4>{v[0], v[1], v[2], 1.0};
+      }
+
+      TGAColor random_colors{};
+      for (int j{0}; j < 3; ++j) {
+        random_colors[j] = static_cast<std::uint8_t>(random_mt::get(0, 255));
+      }
+
+      rasterize(Viewport, clip, zbuffer, framebuffer, random_colors);
+    }
+  }
 
   framebuffer.write_tga_file("framebuffer.tga");
-  zbuffer.write_tga_file("zbuffer.tga");
-
   std::cout << "Time elapsed: " << t.elapsed() << " seconds\n";
 
   return 0;

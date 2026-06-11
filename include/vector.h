@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <iostream>
 
@@ -89,6 +90,30 @@ Vector<N> operator*(const Vector<N>& lhv, double rhd) {
   return result;
 }
 
+// Left scalar division
+template <std::size_t N>
+Vector<N> operator/(double lhd, const Vector<N>& rhv) {
+  Vector<N> result{};
+
+  for (std::size_t i{0}; i < N; ++i) {
+    result[i] = lhd / rhv[i];
+  }
+
+  return result;
+}
+
+// Right scalar division
+template <std::size_t N>
+Vector<N> operator/(const Vector<N>& lhv, double rhd) {
+  Vector<N> result{};
+
+  for (std::size_t i{0}; i < N; ++i) {
+    result[i] = lhv[i] / rhd;
+  }
+
+  return result;
+}
+
 // Dot product (algebraic)
 template <std::size_t N>
 double operator*(const Vector<N>& lhv, const Vector<N>& rhv) {
@@ -101,6 +126,29 @@ double operator*(const Vector<N>& lhv, const Vector<N>& rhv) {
   return result;
 }
 
+// Cross product
+template <std::size_t N>
+Vector<N> cross(const Vector<N>& lhv, const Vector<N>& rhv) {
+  // clang-format off
+  return {lhv[1] * rhv[2] - lhv[2] * rhv[1],
+          lhv[2] * rhv[0] - lhv[0] * rhv[2],
+          lhv[0] * rhv[1] - lhv[1] * rhv[0]};
+  // clang-format on
+}
+
+// Norm
+template <std::size_t N>
+double norm(const Vector<N>& v) {
+  return std::sqrt(v * v);
+}
+
+// Normalize vector
+template <std::size_t N>
+Vector<N> normalize(const Vector<N>& v) {
+  return v / norm(v);
+}
+
+// Vector * Matrix
 template <std::size_t N, std::size_t M>
 Vector<M> operator*(const Vector<N>& lhv, const Matrix<N, M>& rhm) {
   Vector<N> result{};
@@ -112,6 +160,7 @@ Vector<M> operator*(const Vector<N>& lhv, const Matrix<N, M>& rhm) {
   return result;
 }
 
+// Matrix * Vector
 template <std::size_t N, std::size_t M>
 Vector<N> operator*(const Matrix<N, M>& lhm, const Vector<M>& rhv) {
   Vector<N> result{};
