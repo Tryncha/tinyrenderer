@@ -26,13 +26,14 @@ struct TGAColor {
   std::uint8_t bgra[4] = {0, 0, 0, 0};
   std::uint8_t bytespp = 4;
   std::uint8_t& operator[](const int i) { return bgra[i]; }
+  const std::uint8_t& operator[](const int i) const { return bgra[i]; }
 };
 
 struct TGAImage {
   enum format { grayscale = 1, rgb = 3, rgba = 4 };
 
   TGAImage() = default;
-  TGAImage(const int w, const int h, const int bpp, TGAColor c);
+  TGAImage(const int w, const int h, const int bpp, TGAColor c = {});
 
   bool read_tga_file(const std::string filename);
   bool write_tga_file(const std::string filename, const bool vflip = true,

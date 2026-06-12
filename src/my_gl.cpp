@@ -39,28 +39,30 @@ void rasterize(const Triangle& clip, const IShader& shader,
                std::vector<double>& zbuffer, TGAImage& framebuffer) {
   // clang-format off
   // Normalized device coordinates
-  std::array<Vector<4>, 3> ndc{clip[0] / clip[0].w,
-                               clip[1] / clip[1].w,
-                               clip[2] / clip[2].w};
+  const std::array<Vector<4>, 3> ndc{clip[0] / clip[0].w,
+                                     clip[1] / clip[1].w,
+                                     clip[2] / clip[2].w};
   // clang-format on
 
   // Screen coordinates
-  std::array<Vector<2>, 3> screen{
+  const std::array<Vector<2>, 3> screen{
       {{(matrix::Viewport * ndc[0]).x, (matrix::Viewport * ndc[0]).y},
        {(matrix::Viewport * ndc[1]).x, (matrix::Viewport * ndc[1]).y},
        {(matrix::Viewport * ndc[2]).x, (matrix::Viewport * ndc[2]).y}}};
 
-  Matrix<3, 3> abc = {{{{screen[0].x, screen[0].y, 1.0},
-                        {screen[1].x, screen[1].y, 1.0},
-                        {screen[2].x, screen[2].y, 1.0}}}};
+  const Matrix<3, 3> abc{{{{screen[0].x, screen[0].y, 1.0},
+                           {screen[1].x, screen[1].y, 1.0},
+                           {screen[2].x, screen[2].y, 1.0}}}};
 
   // Backface culling + discarding triangles that cover less than a pixel
   if (laplace_det(abc) < 1) return;
 
   // Bounding box for the triangle
   // Defined by its top left and bottom right corners
-  auto [bbminx, bbmaxx] = std::minmax({screen[0].x, screen[1].x, screen[2].x});
-  auto [bbminy, bbmaxy] = std::minmax({screen[0].y, screen[1].y, screen[2].y});
+  const auto [bbminx, bbmaxx] =
+      std::minmax({screen[0].x, screen[1].x, screen[2].x});
+  const auto [bbminy, bbmaxy] =
+      std::minmax({screen[0].y, screen[1].y, screen[2].y});
 
   // Clip the bounding box by the screen
   for (int x{std::max<int>(static_cast<int>(bbminx), 0)};
@@ -81,11 +83,12 @@ void rasterize(const Triangle& clip, const IShader& shader,
       double z{bc * Vector<3>{ndc[0].z, ndc[1].z, ndc[2].z}};
 
       // Discard fragments that are too deep w.r.t the z-buffer
-      auto zbuffer_idx = static_cast<std::size_t>(x + y * framebuffer.width());
+      const auto zbuffer_idx{
+          static_cast<std::size_t>(x + y * framebuffer.width())};
       if (z <= zbuffer[zbuffer_idx]) continue;
 
       // Fragment shader can discard current fragment
-      auto [discard, color] = shader.fragment();
+      const auto [discard, color] = shader.fragment();
       if (discard) continue;
 
       // Update the z-buffer

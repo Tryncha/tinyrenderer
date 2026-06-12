@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cmath>
+
 #include "constant.h"
 #include "model.h"
 #include "my_gl.h"
@@ -29,7 +32,68 @@ struct RandomShader : IShader {
   }
 
   virtual std::pair<bool, TGAColor> fragment() const {
-    return {false, color};  // Do not discard the pixel
+    // Do not discard the pixel
+    return {false, color};
+  }
+};
+
+struct PhongShader : IShader {
+  const Model& m_model;
+  // Light direction in eye coordinates
+  Vector<3> m_light{};
+  // Triangle in eye coordinates
+  std::array<Vector<3>, 3> m_triangle{};
+
+  PhongShader(const Model& model, Vector<3> light) : m_model(model) {
+    // Transform the light vector to view coordinates
+    m_light = normalize(Vector<3>{
+        (matrix::ModelView * Vector<4>{light.x, light.y, light.z, 0.0}).x,
+        (matrix::ModelView * Vector<4>{light.x, light.y, light.z, 0.0}).y,
+        (matrix::ModelView * Vector<4>{light.x, light.y, light.z, 0.0}).z});
+  }
+
+  virtual Vector<4> vertex(int face, int vert) {
+    // Current vertex in object coordinates
+    Vector<3> v{m_model.get_vert(face, vert)};
+    Vector<4> gl_Position = matrix::ModelView * Vector<4>{v.x, v.y, v.z, 1.0};
+
+    // in eye coordinates
+    m_triangle[static_cast<std::size_t>(vert)] = {gl_Position.x, gl_Position.y,
+                                                  gl_Position.z};
+
+    // in clip coordinates
+    return matrix::Perspective * gl_Position;
+  }
+
+  virtual std::pair<bool, TGAColor> fragment() const {
+    // Output color of the fragment
+    TGAColor gl_FragColor{255, 255, 255, 255};
+    // Triangle normal in eye coordinates
+    Vector<3> n{normalize(
+        cross(m_triangle[1] - m_triangle[0], m_triangle[2] - m_triangle[0]))};
+
+    // Reflected light direction
+    Vector<3> r{normalize(2 * n * (n * m_light) - m_light)};
+
+    // Ambient light intensity
+    double ambient = 0.3;
+
+    // Diffuse light intensity
+    double diff = std::max(0.0, n * m_light);
+
+    // Specular intensity, note that the camera lies on the z-axis (in eye
+    // coordinates), therefore simple r.z, since (0,0,1) * (r.x, r.y, r.z) = r.z
+    double spec{std::pow(std::max(r.z, 0.0), 35)};
+
+    const double intensity{std::min(1.0, ambient + 0.4 * diff + 0.9 * spec)};
+
+    for (const auto channel : {0, 1, 2}) {
+      gl_FragColor[channel] =
+          static_cast<std::uint8_t>(gl_FragColor[channel] * intensity);
+    }
+
+    // Do not discard the pixel
+    return {false, gl_FragColor};
   }
 };
 
@@ -52,25 +116,18 @@ int main(int argc, char** argv) {
   std::vector<double> zbuffer(constant::width * constant::height, -std::numeric_limits<double>::max());
   // clang-format on
 
-  TGAImage framebuffer{constant::width,
-                       constant::height,
-                       TGAImage::format::rgb,
-                       {177, 195, 209, 255}};
+  TGAImage framebuffer{constant::width, constant::height,
+                       TGAImage::format::rgb};
 
   // Iterate through all input objects
   for (int m{1}; m < argc; ++m) {
     // Load the data
     Model model{argv[m]};
-    RandomShader shader{model};
+    PhongShader shader{model, {1, 1, 1}};
 
     for (int f{0}; f < model.get_num_faces(); ++f) {
-      shader.color = {static_cast<uint8_t>(random_mt::get(0, 255)),
-                      static_cast<uint8_t>(random_mt::get(0, 255)),
-                      static_cast<uint8_t>(random_mt::get(0, 255)), 255};
-
       Triangle clip{shader.vertex(f, 0), shader.vertex(f, 1),
                     shader.vertex(f, 2)};
-
       rasterize(clip, shader, zbuffer, framebuffer);
     }
   }
